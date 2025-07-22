@@ -1,26 +1,37 @@
 from flask import Flask, request, jsonify
-from datetime import datetime
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
-# Global variable to store the latest sensor data
+# Store the latest data in memory (you can later change this to a database)
 latest_data = {}
 
-@app.route('/data', methods=['POST'])
-def receive_data():
+@app.route('/data', methods=['POST', 'GET'])
+def handle_data():
     global latest_data
-    latest_data = request.get_json()
-    latest_data['timestamp'] = datetime.utcnow().isoformat()
-    print(f"Received at {latest_data['timestamp']} -", latest_data)
-    return jsonify({"status": "ok"}), 200
 
-@app.route('/latest', methods=['GET'])
-def get_latest_data():
-    if latest_data:
-        return jsonify(latest_data), 200
-    else:
-        return jsonify({"message": "No data received yet"}), 404
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "No JSON received"}), 400
 
-@app.route('/', methods=['GET'])
-def home():
-    return "ESP32 Flask Server is running", 200
+            # Log and store the data
+            latest_data = data
+            print("Received:", latest_data)
+            return jsonify({"message": "Data received", "data": latest_data}), 200
+
+        except Exception as e:
+            print("Error:", e)
+            return jsonify({"error": "Failed to process data"}), 500
+
+    elif request.method == 'GET':
+        # Return the last received sensor data
+        if latest_data:
+            return jsonify(latest_data), 200
+        else:
+            return jsonify({"message": "No data available"}), 404
+
+if __name__ == '__main__':
+    app.run(debug=True)
